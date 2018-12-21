@@ -1,6 +1,6 @@
 %%%% -*- Mode: Prolog -*-
 
-% 
+% lmc.pl
 % Jacopo Maltagliati ~ 830110
 % j.maltagliati@campus.unimib.it
 
