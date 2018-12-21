@@ -1,2 +1,1 @@
-
-Copyright (C) 2018 Jacopo Maltagliati
+Copyright (C) 2018, Jacopo Maltagliati

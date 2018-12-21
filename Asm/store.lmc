@@ -1,0 +1,12 @@
+// Test program: store
+		bra text
+dat1	dat 42
+dat2	dat 99
+dat3	dat 0
+text	add dat1
+		sta dat3
+		add dat2
+		lda dat3
+		out
+		hlt
+// hic sunt leones
