@@ -27,9 +27,11 @@
 (defun build_state (Acc PC Mem In Out Flag Halt)
   (cond 
    ((= Halt 0)
-   (append (cons "State" ()) (cons Acc ()) (cons PC ()) Mem In Out (cons Flag ())))
+    (append (cons "State" ()) (cons Acc ()) (cons PC ())
+	    Mem In Out (cons Flag ())))
    ((= Halt 1)
-   (append (cons "Halted_State" ()) (cons Acc ()) (cons PC ()) Mem In Out (cons Flag ()))
+    (append (cons "Halted_State" ()) (cons Acc ()) (cons PC ())
+	    Mem In Out (cons Flag ()))
    )))
 
 ;;; fetch carica un dato dalla memoria
@@ -62,20 +64,29 @@
     (Out (nth 5 List))
     (Flag (nth 6 List)))
      (cond
-      ((= OpCode 1) 
-       (build_state (add Acc Immed Mem) (UpPC PC) (cons Mem ()) In Out (set_flag Acc) 0))
-      ((= OpCode 2) 
-       (build_state (sub Acc Immed Mem) (UpPC PC) (cons Mem ()) In Out (set_flag Acc) 0))
-      ((= Opcode 3) 
-       (build_state (fetch Mem Immed) (UpPC PC) (cons Mem ()) In Out Flag 0))
-      ((= OpCode 5) 
-       (build_state Acc (UpPC PC) (cons (store Mem Immed Acc ())()) In Out Flag 0))
-      ((= OpCode 6) 
+       ((= OpCode 1)
+	(add_execute Acc PC (cons Mem ()) In Out))
+      ((= OpCode 2)
+       (sub_execute Acc PC (cons Mem ()) In Out))
+      ((= Opcode 3)
+       (build_state (fetch Mem Immed) (UpPC PC) (cons Mem ())
+		    In Out Flag 0))
+      ((= OpCode 5)
+       (build_state Acc (UpPC PC) (cons (fetch Mem Immed) ()) In Out Flag 0))
+      ((= OpCode 6)
        (build_state Acc Immed (cons Mem ()) In Out Flag 0))
-      ((= OpCode 7) ())
-      ((= OpCode 8) ())
+      ((= OpCode 7)
+       (branch-if-zero Immed Acc PC (cons Mem ())
+					(cons In ()) (cons Out ()) Flag))
+     ((= OpCode 8)
+      (branch-if-positive Immed Acc PC (cons Mem ())
+					(cons In ()) (cons Out ()) Flag))
       ((= OpCode 901)
-       (build_state (Pop In) (UpPC PC) (cons Mem ()) In Out Flag 0))
+       (build_state (Pop In) (UpPC PC) (cons Mem ())
+		    (cons In ()) (cons Out ()) Flag 0))
+      ((= OpCode 902) (build_state Acc (UpPC PC) (cons Mem ())
+		    (cons In ()) (append (cons Out ()) (cons Acc ())) Flag 0))
+      ((= OpCode 0) (build_state Acc PC Mem In (cons Out ())  Flag 1))
       )))
 
 (defun execution_loop (List)
@@ -86,7 +97,7 @@
          (State (nth 0 List))
          (Out (nth 5 List)))
   (cond 
-   ((equal State "State")
+   ((equal State "state")
     (execution_loop (one_instruction OpCode Immed List)))
    ((equal State "halted_state") Out))))
   
@@ -96,20 +107,46 @@
    ((< oldPC 99) (1+ oldPC))
    ((= oldPC 99) 0 )))
 
-(defun add (Acc PC Mem) 
+(defun add_execute (Acc PC Mem In Out)
   (let* (
-	(Val (nth PC Mem)))
-  (+ Acc Val)))
+	 (Val (nth PC Mem))
+	 (XX (+ Acc Val)))
+     (if (and (> XX 999)
+	     (< XX 0))
+	(build_state XX (UpPC PC) (cons Mem ()) (cons In ())
+		     (cons Out ()) "noflag" 0)
+	(build_state (mod XX 1000) (UpPC PC) (cons Mem ()) (cons In ())
+		     (cons Out ()) "flag" 0))))
 
 
-(defun sub (Acc PC Mem) 
+(defun sub_execute (Acc PC Mem In Out)
   (let* (
-	 (Val (nth PC Mem)))
-  (- Acc Val)))
+	 (Val (nth PC Mem))
+	 (XX (- Acc Val)))
+     (if (and (> XX 999)
+	     (< XX 0))
+	(build_state XX (UpPC PC) (cons Mem ()) (cons In ())
+		     (cons Out ()) "noflag" 0)
+	(build_state XX (UpPC PC) (cons Mem ()) (cons In ())
+		     (cons Out ()) "flag" 0))))
 
 
-; (mod :istruzione 1000) ? XX
-; (nth 0 '(foo bar baz)) =>  FOO
+(defun branch-if-positive (Immed Acc PC Mem In Out Flag)
+    (if
+     (equal Flag "noflag")
+     (build_state Acc Immed (cons Mem ()) (cons In ())
+		  (cons Out ()) Flag 0)
+     (build_state Acc (UpPC PC) (cons Mem ()) (cons In ())
+		  (cons Out ()) Flag 0)))
 
-; funzioni built-in : defparameter, defun, cons, car, cdr, list, cond, nth, rest, first, second, ..., thenth, last, atom,
+
+(defun branch-if-zero (Immed Acc PC Mem In Out Flag)
+    (if (and (= Acc 0)
+	     (equal Flag "noflag"))
+	(build_state Acc Immed (cons Mem ()) (cons In ())
+		     (cons Out ()) Flag 0)
+	(build_state Acc (UpPC PC) (cons Mem ()) (cons In ())
+		     (cons Out ()) Flag 0)))
+
+
 
