@@ -1,6 +1,6 @@
 %%%% -*- Mode: Prolog -*-
 
-% lmc.pl
+% 
 % Jacopo Maltagliati ~ 830110
 % j.maltagliati@campus.unimib.it
 
@@ -14,7 +14,7 @@
 %
 
 % Crea uno stato iniziale a partire da una lista di istruzioni.
-initial_state(Asm, Input, State) :-	
+initial_state(Asm, Input, State) :-
     init_memory(Asm, Mem),
     State = state(0, 0, Mem, Input, [], noflag).
 
@@ -64,7 +64,7 @@ fetch(Mem, Addr, IorD) :-
 % Fase 2: Decode
 % Riceve un istruzione e ne restituisce l'opcode e il valore immediato.
 decode(Content, Opc, Immed) :- 
-	divmod(Content, 100, Opc, Immed). 
+    divmod(Content, 100, Opc, Immed). 
 
 % Fase 3: Execute + Write Back
 %
@@ -168,8 +168,8 @@ execute(9, 2, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, NewOut, Flag, noexc, NewState), !.
 
-% Opcode: [0,4] ; 9
-% Valore Immediato: [0..99] ; [0,3..99]
+% Opcode: [0, 4] ; 9
+% Valore Immediato: [0..99] ; [0, 3..99]
 % Istruzione: <non valida>
 execute(_OpCode, _Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
     % print("DEBUG_HLT"),
@@ -211,10 +211,10 @@ set_flag(_Reg, flag).
 % Controlla che un opcode sia valido, ovvero compreso tra 0 e 9,
 % escluso 4. Se non lo è, fallisce.
 valid_opcode(Opc) :- 
-    between(1,3,Opc), !.
+    between(1, 3, Opc), !.
 
 valid_opcode(Opc) :- 
-    between(5,9,Opc), !.
+    between(5, 9, Opc), !.
 
 % Controlla che un opcode sia invalido, ovvero minore di 0, uguale
 % a 4 o maggiore di 9. Se non lo è, fallisce.
@@ -264,11 +264,11 @@ lrpush(List, Elem, ResList) :-
 % Sostituisce l'elemento della lista all'indice 'Index' con uno dato,
 % e restituisce la lista modificata.
 % lsubst(Index, Insert, Src, Temp, Dest).
-lsubst(0, Insert, [ _SrcH | SrcT ], Temp, Dest) :- 
+lsubst(0, Insert, [_SrcH | SrcT], Temp, Dest) :- 
     append([Temp, [Insert], SrcT], Dest),
     !.
 
-lsubst(Index, Insert, [ SrcH | SrcT ], Temp, Dest) :- 
+lsubst(Index, Insert, [SrcH | SrcT], Temp, Dest) :- 
     append(Temp, [SrcH], NewTemp),
     NewIndex is Index - 1,
     lsubst(NewIndex, Insert, SrcT, NewTemp, Dest).
@@ -285,7 +285,8 @@ lmc_load(Filename, Mem) :-
     % Passo 1 1/2
     build_label_ptr_map(TokenLists, 0, [], NoLabelTokenLists),
     % Passo 2
-    step2_loop(NoLabelTokenLists, [], Mem).
+    step2_loop(NoLabelTokenLists, [], Mem),
+    retractall(access_label(_, _)).
 
 
 % Passo 1: Stream -> Tokens <Label*, Mnemonic, IorL>
@@ -466,10 +467,9 @@ lmc_run_debug_xloop(Filename, Input, Output) :-
     trace,
     execution_loop(State, Output),
     nodebug.
-    
 
-% Controlla TODOs
+lmc_print_memory(Filename) :-
+    lmc_load(Filename, Mem),
+    write(Mem).
 
 %%%% eof: lmc.pl
-
-% lmc_run("./test_anto.lmc", [901, 902, 705, 600, 0, 4, 5, 6, 7, 8, 9, 0], Out).
