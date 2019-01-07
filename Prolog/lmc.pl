@@ -27,6 +27,19 @@ build_state(Acc, Pc, Mem, In, Out, Flag, noexc, NewState) :-
 build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState) :- 
     NewState = halted_state(Acc, Pc, Mem, In, Out, Flag).
 
+%%%%
+eabort(0) :-
+    print("LMC00: Eccezione non gestita"),
+    false.
+
+eabort(1) :-
+    print("LMC01: Eccezione non gestita"),
+    false.
+
+eabort(99) :-
+    print("LMC99: Eccezione non gestita"),
+    false.
+
 % Computa il prossimo stato invocando il predicato 'one_instruction'.
 % Si ferma e restituisce la coda di output se lo stato ricevuto è un
 % 'halting state'
@@ -46,12 +59,14 @@ one_instruction(state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
    execute(Opc, Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState),
    !.
 
-one_instruction(state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
-   fetch(Mem, Pc, Inst),
-   decode(Inst, Opc, _Immed),
-   invalid_opcode(Opc),
-   build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState).
+%one_instruction(state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
+%   fetch(Mem, Pc, Inst),
+%   decode(Inst, Opc, _Immed),
+%   invalid_opcode(Opc),
+%   eabort(99).
 
+one_instruction(_State, _NewState) :-
+    eabort(99).
 
 %%%% Simulazione del Datapath
 
@@ -168,13 +183,15 @@ execute(9, 2, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, NewOut, Flag, noexc, NewState), !.
 
-% Opcode: [0, 4] ; 9
-% Valore Immediato: [0..99] ; [0, 3..99]
-% Istruzione: <non valida>
-execute(_OpCode, _Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
-    % print("DEBUG_HLT"),
+% Opcode: 0
+% Valore Immediato: [0..99]
+% Istruzione: HLT
+execute(0, _Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
     build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState), !.
 
+% TRAP
+execute(_Opcode, _Immed, _State, _NewState) :- 
+    eabort(99), !.
 
 % Adder con Carry Flag
 %
@@ -211,15 +228,13 @@ set_flag(_Reg, flag).
 % Controlla che un opcode sia valido, ovvero compreso tra 0 e 9,
 % escluso 4. Se non lo è, fallisce.
 valid_opcode(Opc) :- 
-    between(1, 3, Opc), !.
+    between(0, 3, Opc), !.
 
 valid_opcode(Opc) :- 
     between(5, 9, Opc), !.
 
 % Controlla che un opcode sia invalido, ovvero minore di 0, uguale
 % a 4 o maggiore di 9. Se non lo è, fallisce.
-invalid_opcode(0).
-
 invalid_opcode(4).
 
 invalid_opcode(Opc) :- 
