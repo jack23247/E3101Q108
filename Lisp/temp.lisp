@@ -267,5 +267,205 @@
 (defun initial-state (Program Input)
   (build-state 0 0 (init-memory Program) Input '() :noflag :noexc))
 
-(defun load-run (Program Input)
-  (execution-loop (initial-state Program Input)))
+(defun load-run (Input)
+  (let* (
+	 (Program (LMC-Run
+		   "/mnt/c/Users/Arthur/Desktop/Progetto LP/Lisp/test.txt")))
+  (execution-loop (initial-state Program Input))))
+
+
+(defun lmao ()
+  (let* (
+	 (Mem (LMC-Run
+		"/mnt/c/Users/Arthur/Desktop/Progetto LP/Lisp/test.txt"))
+	 (In (list 901 902 705 600 0 4 5 6 7 8 9 0)))
+    (execution-loop
+     (list 'state :acc 0 :pc 0 :mem Mem :in In :out '() :flag :noflag))))
+
+
+
+;;; Parser (da sistemare)
+
+
+;;; Step 1: Opening a file and reading lines into a list
+
+(defun reading-from-file (File-Loc)
+  (with-open-file
+      (Stream File-Loc
+	 :direction :input)
+    (read-all-lines-helper Stream)))
+
+(defun read-all-lines-helper (Stream)
+  (let (
+	(line (read-line Stream nil nil)))
+    (when line
+      (append (cons line ()) (read-all-lines-helper stream)))))
+
+
+
+;;; Step 2: Cancello i commenti
+
+(defun inst (File-Loc)
+  (let* (
+	 (splt (reading-from-file File-Loc)))
+    (splitting splt '())))
+
+(defun splitting (lst1 lst2)
+  (cond
+    ((null lst1) lst2)
+    (t
+	(let* (
+	       (elem (pop lst1))
+	       (qart (split-str elem "//")))
+	  (splitting lst1 (append lst2 (cons (string-upcase (pop qart)) '()
+					     )))))))
+
+
+
+;;; Step 3: Creo una lista di liste, ogni sottolista corrisponde ad una riga
+;;; del file
+
+(defun second-split (File-Loc)
+  (let* (
+	 (l (white-spaces File-Loc)))
+    (sec-spl-helper l '())))
+
+(defun sec-spl-helper (lst1 lst2)
+  (cond
+    ((null lst1) lst2)
+    (t
+     (sec-spl-helper (cdr lst1)
+			  (append lst2
+				  (cons (split-str (pop lst1) " ") '()))))))
+
+
+
+;;; Step 4: Deleting white spaces (solo quelli causati dai commenti)
+
+(defun white-spaces (File-Loc)
+ (let* (
+	 (string (inst File-Loc)))
+   (ws-helper string '() (list-length string))))
+
+(defun ws-helper (lst1 lst2 ind)
+  (let* (
+	 (substr (car lst1)))
+  (cond
+    ((= ind 0) lst2)
+    (t
+     (ws-helper (cdr lst1)
+		(append lst2 (cons (string-trim " " substr) '()))
+		(1- ind))))))
+
+
+
+;;; Step 5: Cerco la lables in posizione 0 e le separo dalla lista delle Op
+
+(defun LMC-Run (File-Loc)
+  (let* (
+	 (lst (second-split File-Loc)))
+    (LMC-Run-helper lst '() (make-list 100 :initial-element 0) 0)))
+
+(defun LMC-Run-helper (lst newlst labels index)
+  (let* (
+	 (elem (car lst)))
+    (cond
+      ((= 100 index) (final-mem-state 0 newlst labels '()))
+      ((is-label (car elem))
+       (LMC-Run-helper (cdr lst)
+		       (append newlst (list (cdr elem)))
+		       (store labels index (car elem) '())
+		       (1+ index)))
+      (t
+       (LMC-Run-helper (cdr lst)
+		       (append newlst (list elem))
+		       labels
+		       (1+ index))))))
+
+
+
+;;; Step 6: Final Memory State
+
+(defun final-mem-state (Ind Oprt Labels Mem)
+  (let* (
+	 (Op (pop Oprt)))
+    (cond
+      ((= 100 Ind) Mem)
+      (t
+       (final-mem-state-hlp Oprt Op Labels (list-length Op) Mem Ind)))))
+
+(defun final-mem-state-hlp (Oprt Op Lb Lenght Mem Ind)
+  (cond
+    ((= Lenght 1) (final-mem-state
+		   (1+ Ind) Oprt Lb
+		   (append Mem (list (bld-inst (car Op) "0" lb)))
+		   ))
+    ((= Lenght 2) (final-mem-state
+		   (1+ Ind) Oprt Lb
+		   (append Mem (list (bld-inst (car Op) (cadr Op) lb)))
+		   ))))
+
+
+;;; Splitter (funziona in modo strano ma funziona)
+
+(defun split-str (string &optional separator)
+  (split-str-1 string separator))
+
+(defun split-str-1 (string &optional separator (r nil))
+  (let ((n (position separator string
+		     :from-end t
+		     :test #'(lambda (x y)
+			       (find y x :test #'string=)))))
+    (if n
+	(split-str-1 (subseq string 0 n)
+ 		     separator (cons (subseq string (1+ n)) r))
+	(cons string r))))
+
+
+
+;;; Controlla se la stringa in ingresso è un numero o meno
+
+(defun is-numb (string)
+    (cond
+      ((numberp (parse-integer string :junk-allowed t)) t)))
+
+
+
+;;; Controlla se la stringa in ingresso è un'etichetta o meno
+
+(defun is-label (s)
+  (cond
+    ((or (is-istr s) (is-numb s)) nil)
+    (t t)))
+
+
+
+;;; Controlla se la stringa in ingresso è un'operazione o meno
+;;; ritornando il suo OpCode
+
+(defun is-istr (string)
+  (cond
+    ((equalp string "ADD") 100)
+    ((equalp string "SUB") 200)
+    ((equalp string "STA") 300)
+    ((equalp string "LDA") 500)
+    ((equalp string "BRA") 600)
+    ((equalp string "BRZ") 700)
+    ((equalp string "BRP") 800)
+    ((equalp string "INP") 901)
+    ((equalp string "OUT") 902)
+    ((equalp string "HLT") 99)
+    ((equalp string "DAT") 0)
+    ))
+
+
+(defun bld-inst (OpCode Immed Lb)
+  (cond
+    ((is-label Immed) (+ (is-istr OpCode) (pos lb Immed 0)))
+    ((is-numb Immed) (+ (is-istr OpCode) (parse-integer Immed)))))
+
+(defun pos (List Elem Ind)
+  (cond
+    ((equalp (pop List) Elem) Ind)
+    (t
+     (pos List Elem (1+ Ind)))))
