@@ -29,15 +29,19 @@ build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState) :-
 
 %%%%
 eabort(0) :-
-    print("LMC00: Eccezione non gestita"),
+    print("LMC00: Lettura di <Input> fallita."),
     false.
 
 eabort(1) :-
-    print("LMC01: Eccezione non gestita"),
+    print("LMC01: Opcode non valido."),
+    false.
+
+eabort(2) :-
+    print("LMC02: Label non attesa dopo un'istruzione DAT."),
     false.
 
 eabort(99) :-
-    print("LMC99: Eccezione non gestita"),
+    print("LMC99: Eccezione non attesa."),
     false.
 
 % Computa il prossimo stato invocando il predicato 'one_instruction'.
@@ -386,15 +390,22 @@ unpack_and_asm(TokenList, 1, Assembly) :-
 
 % Assembla un'istruzione in base ai token che riceve in input, cercando
 % di risolverli usando la kb.
+
 asm_binstruction(TokenA, TokenB, Assembly) :- 
     what_is(TokenB, data, ValueB),
     what_is(TokenA, binstruction, ValueA),
     Assembly is ValueA + ValueB,
     between(0, 999, Assembly), !.
 
+asm_binstruction(TokenA, TokenB, _Assembly) :- 
+    what_is(TokenB, label, _ValueB),
+    what_is(TokenA, binstruction, 000),
+    eabort(2), !.
+
 asm_binstruction(TokenA, TokenB, Assembly) :- 
     what_is(TokenB, label, ValueB),
     what_is(TokenA, binstruction, ValueA),
+    dif(ValueA, 000),
     Assembly is ValueA + ValueB,
     between(0, 999, Assembly).
 
@@ -414,6 +425,9 @@ what_is(Love, binstruction, Value) :- % Baby don't hurt me...
 what_is(Love, uinstruction, Value) :- % Don't hurt me...
     mne_query(Love, Value, noimmed).
 
+what_is(Love, sinstruction, 000) :- % Don't hurt me...
+    mne_query(Love, 000, _Type).
+
 what_is(Love, data, Value) :- % No more!
     number_string(Value, Love).
 
@@ -425,6 +439,7 @@ what_is(Love, label, Value) :- % Uh-uh-oh-oh-oh-OH
 % Utilizzato solo dal risolutore delle label.
 % Canta anche una canzone...
 % And so I wake in the morning and I get outside
+
 what_is(GoingOn, binstruction) :- 
     mne_query(GoingOn, _Value, immed), !.
 
