@@ -37,7 +37,23 @@ eabort(1) :-
     false.
 
 eabort(2) :-
-    print("LMC02: Label non attesa dopo un'istruzione DAT."),
+    print("LMC02: Etichetta non attesa dopo un'istruzione DAT."),
+    false.
+
+eabort(3) :-
+    print("LMC03: Errore nel risolutore delle Etichette: possibile duplicato."),
+    false.
+
+eabort(4) :-
+    print("LMC04: Referenziazione etichetta mai dichiarata."),
+    false.
+
+eabort(5) :-
+    print("LMC05: Operazione unaria con valore immediato."),
+    false.
+
+eabort(6) :-
+    print("LMC06: Riga malformata."),
     false.
 
 eabort(99) :-
@@ -302,6 +318,7 @@ lmc_load(Filename, Mem) :-
     step1_loop(Stream, 0, [], TokenLists),
     close(Stream),
     % Passo 1 1/2
+    assertz(access_label("0",0)), % evita l'errore di findall/3
     build_label_ptr_map(TokenLists, 0, [], NoLabelTokenLists),
     % Passo 2
     step2_loop(NoLabelTokenLists, [], Mem),
@@ -348,23 +365,30 @@ cleanup(Tokens, List, Result) :-
 
 % Costruisce in memoria una mappa delle label, togliendole dalla lista
 % di token in ingresso.
-build_label_ptr_map([], _Index, ResTokenLists, ResTokenLists) :- !.
+build_label_ptr_map([], _Index, ResTLs, ResTLs) :- !.
 
-build_label_ptr_map(TokenLists, Index, TmpTokenLists, ResTokenLists) :-	
-    lpop(TokenLists, CurTokenList, Temp),
-    lpop(CurTokenList, FirstToken, ModTokenList),
+build_label_ptr_map(TokenLists, Index, TmpTLs, ResTLs) :-
+    lpop(TokenLists, CurTL, RestTLs),
+    lpop(CurTL, FirstToken, ModTL),
     what_is(FirstToken, DataType),
-    is_label(DataType),
-    lrpush(TmpTokenLists, ModTokenList, NewTokenLists),
-    assertz((access_label(FirstToken, Index) :- !)),
+    is_label(DataType), % Fail1: Non e' un label
+    label_available(FirstToken), % Fail2: Esiste gia'
+    lrpush(TmpTLs, ModTL, NewTLs),
+    add_label(FirstToken, Index),
     NewIndex is Index + 1,
-    build_label_ptr_map(Temp, NewIndex, NewTokenLists, ResTokenLists), !.
+    build_label_ptr_map(RestTLs, NewIndex, NewTLs, ResTLs), !.
 
-build_label_ptr_map(TokenLists, Index, TmpTokenLists, ResTokenLists) :-	
-    lpop(TokenLists, CurTokenList, Temp),
+build_label_ptr_map(TokenLists, Index, TmpTLs, ResTLs) :-
+    lpop(TokenLists, CurTL, RestTLs),
+    ltop(CurTL, FirstToken),
+    what_is(FirstToken, _DataType),
+    mne_query(FirstToken, _OpCode, _Type), % Fail3: Non e' un'istruzione
     NewIndex is Index + 1,
-    lrpush(TmpTokenLists, CurTokenList, NewTokenLists),
-    build_label_ptr_map(Temp, NewIndex, NewTokenLists, ResTokenLists).
+    lrpush(TmpTLs, CurTL, NewTLs),
+    build_label_ptr_map(RestTLs, NewIndex, NewTLs, ResTLs), !.
+
+build_label_ptr_map(_TokenLists, _Index, _TmpTokenLists, _ResTokenLists) :-
+    eabort(3).
 
 % Passo 2: Tokens <Istruzione, IorL> -> Memoria LMC
 step2_loop([], ResMem, ResMem) :- !.
@@ -388,6 +412,9 @@ unpack_and_asm(TokenList, 1, Assembly) :-
     ltop(TokenList, TokenA),
     asm_uinstruction(TokenA, Assembly).
 
+unpack_and_asm(_TokenList, _Length, _Assembly) :-
+    eabort(6).
+
 % Assembla un'istruzione in base ai token che riceve in input, cercando
 % di risolverli usando la kb.
 
@@ -397,17 +424,21 @@ asm_binstruction(TokenA, TokenB, Assembly) :-
     Assembly is ValueA + ValueB,
     between(0, 999, Assembly), !.
 
-asm_binstruction(TokenA, TokenB, _Assembly) :- 
-    what_is(TokenB, label, _ValueB),
-    what_is(TokenA, binstruction, 000),
-    eabort(2), !.
-
 asm_binstruction(TokenA, TokenB, Assembly) :- 
     what_is(TokenB, label, ValueB),
     what_is(TokenA, binstruction, ValueA),
     dif(ValueA, 000),
     Assembly is ValueA + ValueB,
-    between(0, 999, Assembly).
+    between(0, 999, Assembly), !.
+
+asm_binstruction(TokenA, _TokenB, _Assembly) :- % Istruzioni unarie errate
+    what_is(TokenA, uinstruction, _ValueA),
+    eabort(5), !.
+
+asm_binstruction(TokenA, TokenB, _Assembly) :- % Filtro per `DAT LABEL`
+    what_is(TokenB, label, _ValueB),
+    what_is(TokenA, binstruction, 000),
+    eabort(2), !.
 
 asm_uinstruction(TokenA, Assembly) :- 
     what_is(TokenA, uinstruction, Assembly).
@@ -432,7 +463,10 @@ what_is(Love, data, Value) :- % No more!
     number_string(Value, Love).
 
 what_is(Love, label, Value) :- % Uh-uh-oh-oh-oh-OH
-    access_label(Love, Value).
+    access_label(Love, Value), !.
+
+what_is(_Love, label, _Value) :- % No more!
+    eabort(4).
 
 
 % Stabilisce se il tipo di un token è quello richiesto dal chiamante.
@@ -475,6 +509,18 @@ mne_query("DAT", 000, noimmed).
 % Questo predicato viene asserito a runtime dal risolutore delle Label.
 dynamic access_label/2.
 
+label_available(Label) :-
+    findall(Pointer, access_label(Label, Pointer), PointerList),
+    length(PointerList, 0), !.
+
+label_unavailable(Label) :-
+    findall(Pointer, access_label(Label, Pointer), PointerList),
+    length(PointerList, Length),
+    Length @> 0.
+
+add_label(Label, Pointer) :-
+    assertz((access_label(Label, Pointer) :- !)), !.
+
 %%%% Scratch
 
 lmc_run(Filename, Input, Output) :-
@@ -482,7 +528,7 @@ lmc_run(Filename, Input, Output) :-
     initial_state(Mem, Input, State),
     execution_loop(State, Output).
 
-lmc_run_debug_load(Filename, Input, Output) :-
+dbg_load(Filename, Input, Output) :-
     leash(-all),
     trace,
     lmc_load(Filename, Mem),
@@ -490,7 +536,7 @@ lmc_run_debug_load(Filename, Input, Output) :-
     initial_state(Mem, Input, State),
     execution_loop(State, Output).
 
-lmc_run_debug_xloop(Filename, Input, Output) :-
+dbg_xloop(Filename, Input, Output) :-
     lmc_load(Filename, Mem),
     initial_state(Mem, Input, State),
     leash(-all),
@@ -498,8 +544,15 @@ lmc_run_debug_xloop(Filename, Input, Output) :-
     execution_loop(State, Output),
     nodebug.
 
-lmc_print_memory(Filename) :-
+print_memory(Filename) :-
     lmc_load(Filename, Mem),
+    write(Mem).
+
+dbg_print_memory(Filename) :-
+    leash(-all),
+    trace,
+    lmc_load(Filename, Mem),
+    nodebug,
     write(Mem).
 
 %%%% eof: lmc.pl
