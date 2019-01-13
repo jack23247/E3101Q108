@@ -20,10 +20,10 @@ initial_state(Mem, Input, state(0, 0, Mem, Input, [], noflag)) :-
 %% Nel caso si sia  verificata un eccezione ('exc' invece di 'noexc'),
 %% restituisce un 'halting_state'.
 
-build_state(Acc, Pc, Mem, In, Out, Flag, noexc, NewState) :- 
+build_state(Acc, Pc, Mem, In, Out, Flag, noexc, NewState) :-
     NewState = state(Acc, Pc, Mem, In, Out, Flag).
 
-build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState) :- 
+build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState) :-
     NewState = halted_state(Acc, Pc, Mem, In, Out, Flag).
 
 
@@ -36,10 +36,10 @@ eabort(_MsgID) :-
 
 %% execution_loop(+State, -Out)
 %% Computa il prossimo stato invocando il predicato 'one_instruction'.
-%% Si ferma e restituisce la coda di output se lo stato ricevuto è un
-%% 'halting_state'
+%% Si ferma e restituisce la coda di output se lo stato ricevuto e' un
+%% 'halted_state'
 
-execution_loop(state(Acc, Pc, Mem, In, Out, Flag), NewOut) :- 
+execution_loop(state(Acc, Pc, Mem, In, Out, Flag), NewOut) :-
     one_instruction(state(Acc, Pc, Mem, In, Out, Flag), NewState),
     execution_loop(NewState, NewOut),
     !.
@@ -77,7 +77,7 @@ decode(Content, Opc, Immed) :-
 %% immediato. Invoca la 'build_state' per costruire e restituire un
 %% nuovo stato.
 
-execute(1, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :- 
+execute(1, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :-
     %% Opcode: 1
     %% Istruzione: ADD
     fetch(Mem, Immed, ToAdd),
@@ -85,7 +85,7 @@ execute(1, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(NewAcc, NewPc, Mem, In, Out, NewFlag, noexc, NewState), !.
 
-execute(2, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :- 
+execute(2, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :-
     %% Opcode: 2
     %% Istruzione: SUB
     fetch(Mem, Immed, ToNeg),
@@ -94,63 +94,63 @@ execute(2, Immed, state(Acc, Pc, Mem, In, Out, _Flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(NewAcc, NewPc, Mem, In, Out, NewFlag, noexc, NewState), !.
 
-execute(3, Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
+execute(3, Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     %% Opcode: 3
     %% Istruzione: STA
     lsubst(Immed, Acc,  Mem, [], NewMem),
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, NewMem, In, Out, Flag, noexc, NewState), !.
 
-execute(5, Immed, state(_Acc, Pc, Mem, In, Out, Flag), NewState) :- 
+execute(5, Immed, state(_Acc, Pc, Mem, In, Out, Flag), NewState) :-
     %% Opcode: 5
     %% Istruzione: LDA
     fetch(Mem, Immed, NewAcc),
     increment_and_wrap(Pc, NewPc),
     build_state(NewAcc, NewPc, Mem, In, Out, Flag, noexc, NewState), !.
 
-execute(6, Immed, state(Acc, _Pc, Mem, In, Out, Flag), NewState) :- 
+execute(6, Immed, state(Acc, _Pc, Mem, In, Out, Flag), NewState) :-
     %% Opcode: 6
     %% Istruzione: BRA
     build_state(Acc, Immed, Mem, In, Out, Flag, noexc, NewState), !.
 
 %% Opcode: 7
 %% Istruzione: BRA
-execute(7, Immed, state(0, _Pc, Mem, In, Out, noflag), NewState) :- 
+execute(7, Immed, state(0, _Pc, Mem, In, Out, noflag), NewState) :-
     build_state(0, Immed, Mem, In, Out, noflag, noexc, NewState), !.
 
-execute(7, _Immed, state(Acc, Pc, Mem, In, Out, noflag), NewState) :- 
+execute(7, _Immed, state(Acc, Pc, Mem, In, Out, noflag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, Out, noflag, noexc, NewState), !.
 
-execute(7, _Immed, state(Acc, Pc, Mem, In, Out, flag), NewState) :- 
+execute(7, _Immed, state(Acc, Pc, Mem, In, Out, flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, Out, flag, noexc, NewState), !.
 
 %% Opcode: 8
 %% Istruzione: BRP
-execute(8, Immed, state(Acc, _Pc, Mem, In, Out, noflag), NewState) :- 
+execute(8, Immed, state(Acc, _Pc, Mem, In, Out, noflag), NewState) :-
     build_state(Acc, Immed, Mem, In, Out, noflag, noexc, NewState), !.
 
-execute(8, _Immed, state(Acc, Pc, Mem, In, Out, flag), NewState) :- 
+execute(8, _Immed, state(Acc, Pc, Mem, In, Out, flag), NewState) :-
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, Out, flag, noexc, NewState), !.
 
 %% Opcode: 9
 %% Valore Immediato: 1
 %% Istruzione: INP
-execute(9, 1, state(_Acc, Pc, Mem, In, Out, Flag), NewState) :-	
+execute(9, 1, state(_Acc, Pc, Mem, In, Out, Flag), NewState) :-
     lpop(In, NewAcc, NewIn),
     between(0, 999, NewAcc),
     increment_and_wrap(Pc, NewPc),
     build_state(NewAcc, NewPc, Mem, NewIn, Out, Flag, noexc, NewState), !.
 
-execute(9, 1, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-	
+execute(9, 1, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState), !.
 
 %% Opcode: 9
 %% Valore Immediato: 2
 %% Istruzione: OUT
-execute(9, 2, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
+execute(9, 2, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     lrpush(Out, Acc, NewOut),
     increment_and_wrap(Pc, NewPc),
     build_state(Acc, NewPc, Mem, In, NewOut, Flag, noexc, NewState), !.
@@ -158,22 +158,22 @@ execute(9, 2, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
 %% Opcode: 0
 %% Valore Immediato: [0..99]
 %% Istruzione: HLT
-execute(0, _Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :- 
+execute(0, _Immed, state(Acc, Pc, Mem, In, Out, Flag), NewState) :-
     build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState), !.
 
 %% Trap
 %% Sistema catch-all per gli errori.
 %% Non dovrebbe succedere mai una cosa del genere.
-execute(_Opcode, _Immed, _State, _NewState) :- 
+execute(_Opcode, _Immed, _State, _NewState) :-
     eabort(99), !.
 
 
 %% adder_add(+OpA, +OpB, -Flag, -Res)
 %% Adder con Carry Flag
-%% Somma aritmeticamente due interi: se il risultato non è compreso
+%% Somma aritmeticamente due interi: se il risultato non e' compreso
 %% tra 0 e 999 ne restituisce il modulo 1000 e 'flag', in caso
 %% contrario vengono restituiti il risultato e 'noflag'.
-adder_add(OpA, OpB, Flag, Res) :- 
+adder_add(OpA, OpB, Flag, Res) :-
     Tmp is OpA + OpB,
     set_flag(Tmp, Flag),
     divmod(Tmp, 1000, _, Res).
@@ -182,7 +182,7 @@ adder_add(OpA, OpB, Flag, Res) :-
 %% Negatore per l'adder
 %% Prende in input un valore numerico e ne restituisce la negazione
 %% aritmetica.
-adder_neg(OpA, Res) :- 
+adder_neg(OpA, Res) :-
     Res is -OpA.
 
 %%%% Predicati di supporto
@@ -192,7 +192,7 @@ adder_neg(OpA, Res) :-
 %% si riparte da 0.
 increment_and_wrap(99, 0).
 
-increment_and_wrap(Reg, NewReg) :- 
+increment_and_wrap(Reg, NewReg) :-
     between(0, 99, Reg),
     NewReg is Reg + 1.
 
@@ -200,7 +200,7 @@ increment_and_wrap(Reg, NewReg) :-
 %% set_flag(+Reg, -Flag)
 %% Controlla che il valore di un registro sia compreso tra 0 e 999:
 %% in questo caso restituisce 'noflag', altrimenti 'flag'
-set_flag(Reg, noflag) :- 
+set_flag(Reg, noflag) :-
     between(0, 999, Reg), !.
 
 set_flag(_Reg, flag).
@@ -209,10 +209,10 @@ set_flag(_Reg, flag).
 %% valid_opcode(+Opc)
 %% Controlla che un opcode sia valido, ovvero compreso tra 0 e 9,
 %% escluso 4. Se non lo e', fallisce.
-valid_opcode(Opc) :- 
+valid_opcode(Opc) :-
     between(0, 3, Opc), !.
 
-valid_opcode(Opc) :- 
+valid_opcode(Opc) :-
     between(5, 9, Opc), !.
 
 %% invalid_opcode(+Opc)
@@ -220,10 +220,10 @@ valid_opcode(Opc) :-
 %% a 4 o maggiore di 9. Se non lo e', fallisce.
 invalid_opcode(4).
 
-invalid_opcode(Opc) :- 
+invalid_opcode(Opc) :-
     Opc @>= 10, !.
 
-invalid_opcode(Opc) :- 
+invalid_opcode(Opc) :-
     Opc @=< -1, !.
 
 
@@ -233,7 +233,7 @@ invalid_opcode(Opc) :-
 %% generata una serie di valori di padding compresi tra 1 e 99, che vanno a
 %% riempire le celle di memoria mancanti. Se abbiamo piu' di 100 istruzioni,
 %% il predicato fallisce.
-init_memory(Pgm, Pgm) :- 
+init_memory(Pgm, Pgm) :-
     length(Pgm, PgmLength),
     PgmLength == 100, !.
 
@@ -264,23 +264,23 @@ ltop([Top | _], Top).
 %% llpush(+List, +Elem, -ResList)
 %% Aggiunge un elemento in testa ad una lista e ne restituisce la nuova
 %% versione.
-llpush(List, Elem, ResList) :- 
+llpush(List, Elem, ResList) :-
     append([Elem], List, ResList).
 
 %% lrpush(+List, +Elem, -ResList)
 %% Aggiunge un elemento in coda ad una lista e ne restituisce la nuova
 %% versione.
-lrpush(List, Elem, ResList) :- 
+lrpush(List, Elem, ResList) :-
     append(List, [Elem], ResList).
 
 %% lsubst(+Index, +Insert, +Src, [], -Dest).
 %% Sostituisce l'elemento della lista all'indice 'Index' con uno dato,
 %% e restituisce la lista modificata.
-lsubst(0, Insert, [_SrcH | SrcT], Temp, Dest) :- 
+lsubst(0, Insert, [_SrcH | SrcT], Temp, Dest) :-
     append([Temp, [Insert], SrcT], Dest),
     !.
 
-lsubst(Index, Insert, [SrcH | SrcT], Temp, Dest) :- 
+lsubst(Index, Insert, [SrcH | SrcT], Temp, Dest) :-
     append(Temp, [SrcH], NewTemp),
     NewIndex is Index - 1,
     lsubst(NewIndex, Insert, SrcT, NewTemp, Dest).
@@ -299,7 +299,7 @@ lmc_run(Filename, Input, Output) :-
 %% lmc_load(+Filename, -Mem)
 %% Crea una memoria compatibile con il formato LMC a partire da un file di
 %% testo.
-lmc_load(Filename, Mem) :- 
+lmc_load(Filename, Mem) :-
     %% Passo 1
     open(Filename, read, Stream),
     step1_loop(Stream, 0, [], TokenLists),
@@ -315,11 +315,11 @@ lmc_load(Filename, Mem) :-
 
 %% step1_loop(+Stream, -1, [], -Result)
 %% Passo 1: Stream -> Tokens <Label*, Mnemonic, IorL>
-step1_loop(Stream, -1, Lines, Result) :- 
+step1_loop(Stream, -1, Lines, Result) :-
     read_string(Stream, "\n", "\r", _NewLn, Line),
     strip_and_push(Line, Lines, Result), !.
 
-step1_loop(Stream, _Ln, Lines, Result) :- 
+step1_loop(Stream, _Ln, Lines, Result) :-
     read_string(Stream, "\n", "\r", NewLn, Line),
     strip_and_push(Line, Lines, TmpRes),
     step1_loop(Stream, NewLn, TmpRes, Result), !.
@@ -328,17 +328,17 @@ step1_loop(Stream, _Ln, Lines, Result) :-
 %% comment_pos(+Line -Pos)
 %% Stabilisce la posizione di un commento, e ritorna l'indice dell'ultimo
 %% carattere utile della stringa
-comment_pos(Line, Pos) :- 
+comment_pos(Line, Pos) :-
     sub_string(Line, Pos, 2, _CPos, "//"), !.
 
-comment_pos(Line, Pos) :- 
+comment_pos(Line, Pos) :-
     sub_string(Line, _Zero, _Length, Pos, _Line).
 
 %% strip_and_push(+Line, +List, -Result)
 %% Trova e rimuove tutti i caratteri dopo la prima occorrenza di "//"
 %% nella riga corrente, per poi restituire una lista contenente i token
 %% di ogni riga.
-strip_and_push(Line, List, Result) :- 
+strip_and_push(Line, List, Result) :-
     comment_pos(Line, Pos),
     sub_string(Line, _, Pos, _, NoComment),
     string_upper(NoComment, UpComment),
@@ -350,7 +350,7 @@ strip_and_push(Line, List, Result) :-
 %% Aggiunge i token alla lista, a patto che non siano vuoti.
 cleanup([""], List, List).
 
-cleanup(Tokens, List, Result) :- 
+cleanup(Tokens, List, Result) :-
     append(List, [Tokens], Result).
 
 
@@ -387,7 +387,7 @@ build_label_ptr_map(_TokenLists, _Index, _TmpTokenLists, _ResTokenLists) :-
 %% Passo 2: Tokens <Istruzione, IorL> -> Memoria LMC
 step2_loop([], ResMem, ResMem) :- !.
 
-step2_loop(TokenLists, TmpMem, ResMem) :- 
+step2_loop(TokenLists, TmpMem, ResMem) :-
     lpop(TokenLists, CurTokenList, NewTokenLists),
     length(CurTokenList, CTLen),
     unpack_and_asm(CurTokenList, CTLen, Asm),
@@ -399,12 +399,12 @@ step2_loop(TokenLists, TmpMem, ResMem) :-
 %% Spacchetta una lista di token e usa la kb per riconoscere le istruzioni
 %% e le eventuali etichette, per poi restituire l'istruzione assemblata.
 
-unpack_and_asm(TokenList, 2, Assembly) :- 
+unpack_and_asm(TokenList, 2, Assembly) :-
     lpop(TokenList, TokenA, TmpTLA),
     ltop(TmpTLA, TokenB),
     asm_binstruction(TokenA, TokenB, Assembly).
 
-unpack_and_asm(TokenList, 1, Assembly) :- 
+unpack_and_asm(TokenList, 1, Assembly) :-
     ltop(TokenList, TokenA),
     asm_uinstruction(TokenA, Assembly).
 
@@ -416,13 +416,13 @@ unpack_and_asm(_TokenList, _Length, _Assembly) :-
 %% Assembla un'istruzione in base ai token che riceve in input, cercando
 %% di risolverli usando la kb.
 
-asm_binstruction(TokenA, TokenB, Assembly) :- 
+asm_binstruction(TokenA, TokenB, Assembly) :-
     what_is(TokenB, data, ValueB),
     what_is(TokenA, binstruction, ValueA),
     Assembly is ValueA + ValueB,
     between(0, 999, Assembly), !.
 
-asm_binstruction(TokenA, TokenB, Assembly) :- 
+asm_binstruction(TokenA, TokenB, Assembly) :-
     what_is(TokenB, label, ValueB),
     what_is(TokenA, binstruction, ValueA),
     dif(ValueA, 000),
@@ -438,7 +438,7 @@ asm_binstruction(TokenA, TokenB, _Assembly) :- % Filtro per `DAT LABEL`
     what_is(TokenA, binstruction, 000),
     eabort(2), !.
 
-asm_uinstruction(TokenA, Assembly) :- 
+asm_uinstruction(TokenA, Assembly) :-
     what_is(TokenA, uinstruction, Assembly).
 
 
@@ -470,16 +470,16 @@ what_is(_Love, label, _Value) :-
 
 
 %% what_is(+GoingOn, ?Type)
-%% Stabilisce se il tipo di un token è quello richiesto dal chiamante.
+%% Stabilisce se il tipo di un token e' quello richiesto dal chiamante.
 %% Utilizzato solo dal risolutore delle label.
 
-what_is(GoingOn, binstruction) :- 
+what_is(GoingOn, binstruction) :-
     mne_query(GoingOn, _Value, immed), !.
 
-what_is(GoingOn, uinstruction) :- 
+what_is(GoingOn, uinstruction) :-
     mne_query(GoingOn, _Value, noimmed), !.
 
-what_is(GoingOn, data) :- 
+what_is(GoingOn, data) :-
     number_string(_Value, GoingOn), !.
 
 what_is(_GoingOn, label).
@@ -609,5 +609,6 @@ dbg_print_memory(Filename) :-
     lmc_load(Filename, Mem),
     nodebug,
     write(Mem).
+
 
 %%%% eof: lmc.pl

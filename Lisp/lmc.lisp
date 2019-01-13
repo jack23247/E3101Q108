@@ -551,3 +551,6 @@
 
 (defun datp (Token)
   (if (equalp Token "DAT") 0 NIL))
+
+
+;;;; eof: lmc.lisp
