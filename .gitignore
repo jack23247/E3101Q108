@@ -1,6 +1,10 @@
 # Created by https://www.gitignore.io/api/emacs,commonlisp
 # Edit at https://www.gitignore.io/?templates=emacs,commonlisp
 
+### LMC Stuff ###
+*.lmc
+./Asm/*.*
+
 ### Prolog ###
 # Prolog keeps itself quite clean...
 

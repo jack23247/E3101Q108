@@ -1,6 +1,6 @@
 %%%% -*- Mode: Prolog -*-
 
-% 
+% lmc.pl - Simulatore ed Assemblatore LMC in Prolog
 % Jacopo Maltagliati ~ 830110
 % j.maltagliati@campus.unimib.it
 
@@ -13,10 +13,9 @@
 %   halted_state(Acc, Pc, Mem, In, Out, Flag).
 %
 
-% Crea uno stato iniziale a partire da una lista di istruzioni.
-initial_state(Asm, Input, State) :-
-    init_memory(Asm, Mem),
-    State = state(0, 0, Mem, Input, [], noflag).
+% Crea uno stato iniziale a partire da una memoria.
+initial_state(Mem, Input, state(0, 0, Mem, Input, [], noflag)) :-
+    length(Mem, 100). % qad hack
 
 % Restituisce un nuovo 'state' a partire da una serie di parametri.
 % Nel caso si sia  verificata un eccezione ('exc' invece di 'noexc'),
@@ -27,7 +26,7 @@ build_state(Acc, Pc, Mem, In, Out, Flag, noexc, NewState) :-
 build_state(Acc, Pc, Mem, In, Out, Flag, exc, NewState) :- 
     NewState = halted_state(Acc, Pc, Mem, In, Out, Flag).
 
-%%%%
+% Messaggi di errore
 eabort(0) :-
     print("LMC00: Lettura di <Input> fallita."),
     false.
@@ -275,10 +274,16 @@ init_memory(Pgm, Pgm) :-
 init_memory(Pgm, Mem) :-
     length(Pgm, PgmLength),
     PadLength is 100 - PgmLength,
-    PadLength @> 0,
-    randseq(PadLength, 99, Pad),
+    PadLength @>= 0,
+    create_padding(PadLength, [], Pad),
     append(Pgm, Pad, Mem).
 
+create_padding(0, Pad, Pad) :- !.
+
+create_padding(PadLength, TmpPad, Pad) :-
+    NewPadLength is PadLength - 1,
+    append(TmpPad, [0], NewTmpPad),
+    create_padding(NewPadLength, NewTmpPad, Pad).
 
 % Data una lista, ne restituisce il primo elemento e il resto della lista.
 lpop([Top | Rest], Top, Rest).
@@ -321,8 +326,9 @@ lmc_load(Filename, Mem) :-
     assertz(access_label("0",0)), % evita l'errore di findall/3
     build_label_ptr_map(TokenLists, 0, [], NoLabelTokenLists),
     % Passo 2
-    step2_loop(NoLabelTokenLists, [], Mem),
-    retractall(access_label(_, _)).
+    step2_loop(NoLabelTokenLists, [], Pgm),
+    retractall(access_label(_, _)),
+    init_memory(Pgm, Mem).
 
 
 % Passo 1: Stream -> Tokens <Label*, Mnemonic, IorL>
