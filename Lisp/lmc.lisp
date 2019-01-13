@@ -1,12 +1,17 @@
 ;;;; -*- Mode: Lisp -*-
 
+;;; lmc.lisp
+;;; Implementazione in Lisp del Little Man's Computer
+;;; Jacopo Maltagliati ~ 830110
+;;; j.maltagliati@campus.unimib.it
+
 ;;;; Funzioni di supporto
 
-;; eabort MsgID -> NIL
-;; Stampa un messaggio di errore relativo al codice <MsgID> in ingresso e
+;; eabort-dbg MsgID -> NIL
+;; Stampa un messaggio di errore relativo al codice di errore in ingresso e
 ;; restituisce NIL.
 
-(defun eabort (MsgID)
+(defun eabort-dbg (MsgID)
   (cond ((= MsgID 0)
 	 (write-line "LMC00: Lettura di <Input> fallita."))
 	((= MsgID 1)
@@ -24,6 +29,13 @@
 	 (write-line "LMC06: Riga malformata."))
 	(t
 	 (write-line "LMC99: Eccezione non attesa")))
+  NIL)
+
+
+;; eabort MsgID -> NIL
+;; Versione release di eabort-dbg: restituisce NIL senza stampare nulla.
+
+(defun eabort (MsgID)
   NIL)
 
 ;; increment-and-wrap PC -> NewPC
@@ -322,29 +334,29 @@
       (append Temp (cons (car Mem) ()))))))
 
 
-;;;; Sample TEXT 2 TODO
+;;;; Funzioni principali del simulatore
+
+;; lmc-run Path, Input -> Output | NIL
+;; Carica un programma e si occupa di eseguirlo, elaborando la coda di input
+;; e restituendo quella di output.
 
 (defun lmc-run (Path Input)
   (execution-loop (initial-state (lmc-load Path) Input)))
 
-;; TODO: Aggiungi lmc-run, lmc-load
 
-(defun dbg-run ()
-  (lmc-run "C:\\Users\\quartz\\Desktop\\Workspace\\Git\\830110_Maltagliati_Jacopo_LP_E1P_2018_LMC\\Asm\\cyc.lmc" (list 3 4 5)))
-
-
-
-;;;; Parser (da sistemare)
-
+;; lmc-load Path -> Program
+;; Carica un file assembly, ne controlla la correttezza e si occupa di
+;; assemblarlo, restituendo il programma sotto forma di lista.
 
 (defun lmc-load (Path)
   (let* ((L3Cons (lbl-search-wrapper (split-line-wrapper
-				     (fuck-comments-wrapper
+				     (fcomments-wrapper
 				      (read-file Path))))))
     (assembler-wrapper (pop L3Cons) L3Cons)))
-    ;;(print L3Cons)))
 
-;; Step 1: Opening a file and reading lines into a list
+
+;; read-file Path -> LineList
+;; Legge il file assembly e restituisce una lista di righe.
 
 (defun read-file (Path)
   (with-open-file (Stream Path :direction :input)
@@ -358,21 +370,25 @@
 			       (list (substitute #\Space #\Tab Line))))
 	LineList)))
 
-;; Cancella i commenti
 
-(defun fuck-comments-wrapper (LineList)
-  (rec-fuck-comments LineList '()))
+;; fcomments-wrapper LineList -> NiceLineList
+;; Rimuove i commenti dalla lista di righe e restituisce la lista pulita.
 
-(defun rec-fuck-comments (Lines NoComments)
+(defun fcomments-wrapper (LineList)
+  (rec-fcomments LineList '()))
+
+(defun rec-fcomments (Lines NoComments)
   (cond
     ((null Lines) NoComments)
     (t
      (let* ((CurLine (pop Lines)))
-       (rec-fuck-comments Lines
+       (rec-fcomments Lines
 	 (append NoComments
 		 (list (string-upcase (car (split-string CurLine "//"))))))))))
 
-;;  Splitta le linee
+
+;; split-line-wrapper Lines -> TokenLists
+;; Divide le linee pulite in liste di token.
 
 (defun split-line-wrapper (Lines)
     (rec-split-lines Lines '()))
@@ -384,7 +400,11 @@
 			       (list (split-all-wrapper (car Lines) " "))))
       TokenLists))
 
-;; Cerca e separa le Label
+
+;; lbl-search-wrapper CleanLines -> L3Cons
+;; Cerca e separa le Label dalla lista di tokens e restituisce una cons-cell
+;; il cui car e' la lista dei token rimanenti e il cui cdr e' la lista delle
+;; etichette, con "0INV" al posto di un'etichetta mancante.
 
 (defun lbl-search-wrapper (CleanLines)
    (rec-lbl-search CleanLines '() '()))
@@ -407,7 +427,11 @@
 			       (append TmpLabelList (list "0INV")))))))))
 
 
-;;;; COMPILER
+;;;; Assemblatore LMC
+
+;; assembler-wrapper Lines LabelList -> Program | NIL
+;; Data una lista di liste di token e la lista di etichette, assembla e
+;; restituisce il programma corrispondente.
 
 (defun assembler-wrapper (Lines LabelList)
   (rec-assemble Lines LabelList '()))
@@ -454,7 +478,9 @@
       NIL))
 
 
-;;; Splitter (funziona bene)
+;; split-all-wrapper String, Separator -> TokenList
+;; Restituise una lista di token, che corrispondono alle varie parti di una
+;; stringa, divisa nel punto in cui si trova il separatore.
 
 (defun split-all-wrapper (String Separator)
   (rec-split-all String Separator '()))
@@ -463,7 +489,7 @@
   (let ((CurTokenRest (split-string
 		       (string-trim '(#\Space #\Tab #\Return #\Linefeed) String)
 		       Separator)))
-    (let ((CurToken (genera-cosa-strana (car CurTokenRest)))
+    (let ((CurToken (cleanup (car CurTokenRest)))
 	  (Rest (cdr CurTokenRest)))
       (if Rest
 	  (rec-split-all Rest
@@ -472,7 +498,7 @@
 			     TmpTokenList))
 	  (append TmpTokenList (list CurToken))))))
 
-(defun genera-cosa-strana (Token)
+(defun cleanup (Token)
   (if (equal Token "") NIL Token))
 
 (defun split-string (String Separator)
@@ -486,20 +512,23 @@
 	(list String))))
 
 
-;;; Controlla se la stringa in ingresso è un numero o meno
+;; immedp Token -> Immed | NIL
+;; Se Token e' un valore numerico, ne restituisce il valore, altrimenti NIL
 
 (defun immedp (Token)
     (cond
       ((numberp (parse-integer Token :junk-allowed T)) T)))
 
-;;; Controlla se la stringa in ingresso è un'etichetta o meno
+
+;; labelp Token -> OpCode | NIL
+;; Se Token e' un label, restituisce T, altrimenti NIL
 
 (defun labelp (Token)
   (if (or (instrp Token) (immedp Token)) NIL T))
 
 
-;;; Controlla se la stringa in ingresso è un'operazione o meno
-;;; ritornando il suo OpCode
+;; instrp Token -> OpCode | NIL
+;; Se Token e' un'istruzione, restituisce il suo opcode, altrimenti NIL
 
 (defun instrp (Token)
   (cond
@@ -515,6 +544,10 @@
     ((equalp Token "HLT") 99)
     ((equalp Token "DAT") 0)
     (t NIL)))
+
+
+;; datp Token -> OpCode | NIL
+;; Se Token e' l'istruzione DAT, restituisce il suo opcode, altrimenti NIL
 
 (defun datp (Token)
   (if (equalp Token "DAT") 0 NIL))
