@@ -1,3 +1,3 @@
-# Little Man's Computer
+# E3101Q108
 
-Originated from an assignment, this project attempts to implement an LMC simulator in many languages, showcasing different coding styles and paradigms. A detailed overview of the LMC's architecture is shown [here](https://en.wikipedia.org/wiki/Little_man_computer).
+Progetto d'esame per il corso di *Linguaggi di Programmazione* anno 2018-19 (1819-2-E3101Q108) del Dipartimento di Informatica, Sistemistica e Comunicazione (DISCo) dell'Università degli Studi di Milano-Bicocca
